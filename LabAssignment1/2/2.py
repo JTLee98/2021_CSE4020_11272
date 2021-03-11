@@ -11,9 +11,9 @@ def update_clock(key):
     if key >= glfw.KEY_1 and key <= glfw.KEY_3: #1 to 3
         clock_idx = 3 - (key - glfw.KEY_0)
     elif key == glfw.KEY_Q: #Q
-        clock_idx = 10
+        clock_idx = 4
     elif key == glfw.KEY_W: #W
-        clock_idx = 11    
+        clock_idx = 3    
     elif key == glfw.KEY_0: #zero
         clock_idx = 5
     elif key >= glfw.KEY_1 and key <= glfw.KEY_9: #4 to 9
