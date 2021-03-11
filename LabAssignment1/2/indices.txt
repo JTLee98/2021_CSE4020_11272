@@ -1,13 +1,13 @@
-vposIndex   clockIndex  glfw.key if case
-0           3           3        num
-1           2           2        num
-2           1           1        num
-3           0 (12)      W        W
-4           11          Q        Q
+vposIndex   clock       glfw.key if-case
+0           3           3        1 to 3
+1           2           2        1 to 3
+2           1           1        1 to 3
+3           0 (12)      Q        W
+4           11          W        Q
 5           10          0        zero
-6           9           9        num
-7           8           8        num
-8           7           7        num
-9           6           6        num
-10          5           5        num
-11          4           4        num
+6           9           9        4 to 9
+7           8           8        4 to 9
+8           7           7        4 to 9
+9           6           6        4 to 9
+10          5           5        4 to 9
+11          4           4        4 to 9
