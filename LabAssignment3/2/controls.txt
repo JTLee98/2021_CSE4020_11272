@@ -1,0 +1,10 @@
+glfw.KEY = transform
+--------------------------------------------
+W = Scale by 0.9 times in y dir
+E = Scale by 1.1 times in y dir
+S = Rotate by 10 degs CCW
+D = Rotate by 10 degs CW
+X = Translate by  0.1 in x dir 
+C = Translate by -0.1 in x dir
+R = Reflection across the origin
+1 = Reset with ID matrix
