@@ -60,17 +60,7 @@ def main():
         glfw.wait_events()
 
         # Render here, e.g. using pyOpenGL
-        glClear(GL_COLOR_BUFFER_BIT)
-        glLoadIdentity()
-        glBegin(GL_LINE_LOOP)
-        for i in range(12):
-            glVertex2fv(vposbuff[i])
-        glEnd()
-        glBegin(GL_LINES)
-        glVertex2f(0.0, 0.0)
-        glVertex2fv(vposbuff[clock_idx])
-        glEnd()
-        #render()
+        render()
 
         # Swap front and back buffers
         glfw.swap_buffers(window)
