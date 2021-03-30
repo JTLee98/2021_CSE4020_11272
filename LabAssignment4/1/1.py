@@ -19,7 +19,8 @@ def render():
 
     # implement here
     for cmd in keyHistL:
-        cmd()
+        cmd()  # execute each 'cmd' function
+
     # drawTriangle func
     drawTriangle()
 
@@ -49,8 +50,9 @@ def D():
     glRotatef(-10.0, 0.0, 0.0, 1.0)
 
 
+# store key history (by appending) in 'keyHistL' list
 cmdLookupD = {glfw.KEY_Q: Q, glfw.KEY_E: E, glfw.KEY_A: A, glfw.KEY_D: D}
-keyHistL = []
+keyHistL = []  # list of func pointers (Q(), E(), A() ,D())
 
 
 def key_callback(window, key, scancode, action, mods):
