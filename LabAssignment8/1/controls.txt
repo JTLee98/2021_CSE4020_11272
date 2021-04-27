@@ -1,0 +1,10 @@
+key | control               | coords
+---------------------------------------------
+Q   | Translate x dir -0.1  | global 
+E   | Translate x dir +0.1  | global 
+A   | Rotate y axis -10 deg | local
+D   | Rotate y axis +10 deg | local 
+W   | Rotate x axis -10 deg | local 
+S   | Rotate x axis +10 deg | local 
+1   | Rotate cam -10 deg
+3   | Rotate cam +10 deg
