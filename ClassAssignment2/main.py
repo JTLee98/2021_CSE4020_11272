@@ -67,15 +67,15 @@ height = 720
 # true = perspective / false = ortho
 PROJMODE = True
 # control sensitivity (const)
-LMBsens = 0.005
-RMBsens = 0.001
-zoomsens = 0.5
+LMBsens = 0.1
+RMBsens = 0.003
+zoomsens = 10
 # camera params
 az = np.deg2rad(45.0)
 ev = np.deg2rad(37.0)
 panU = 0.0
 panV = 0.0
-zoom = 100.0
+zoom = 200.0
 # view params
 eye = np.array([3.0, 3.0, 3.0])
 center = np.zeros(3)
@@ -392,13 +392,13 @@ def parse_obj(filepath):
 ### hmode meshes ###
 script_dir = os.path.dirname(__file__)
 # island
-island_file = os.path.join(script_dir, '0-island.obj')
+island_file = os.path.join(script_dir, 'resources/0-island.obj')
 island_mesh = parse_obj(island_file)
 # mill
-mill_file = os.path.join(script_dir, '1-mill.obj')
+mill_file = os.path.join(script_dir, 'resources/1-mill.obj')
 mill_mesh = parse_obj(mill_file)
 # propeller
-prop_file = os.path.join(script_dir, '2-propeller.obj')
+prop_file = os.path.join(script_dir, 'resources/2-propeller.obj')
 prop_mesh = parse_obj(prop_file)
 # island_mesh = parse_obj(
 #     'D:\\DRIVE\\SCHOOL\\CSE4020-CGI\\repos\\2021_cse4020_2018014275\\ClassAssignment2\\0-island.obj')
@@ -442,9 +442,9 @@ def render(window):
         glScalef(0.5, 0.5, 0.5)
         # island
         glPushMatrix()
-        glRotatef(-10*t, 0, 0, 1)
-        glTranslatef(0, 0, 10*sin1)
-        glTranslatef(0, 60, 0)
+        glRotatef(-20*t, 0, 0, 1)
+        glTranslatef(0, 0, 50+10*sin1)
+        glTranslatef(0, 70, 0)
         drawmesh(island_mesh)
         # mill
         glPushMatrix()
@@ -473,17 +473,14 @@ def drawmesh(p_mesh):
 ### lighting ###
 
 
-def light(light_id, lightPos, lightCol, objCol):
+def light(light_id, lightPos, lightCol):
     glEnable(light_id)
     glLightfv(light_id, GL_POSITION, lightPos)
     ambientLightColor = (.1, .1, .1, 1.)
     specularObjectColor = (1., 1., 1., 1.)
     glLightfv(light_id, GL_AMBIENT, ambientLightColor)
-    glMaterialfv(GL_FRONT, GL_SPECULAR, specularObjectColor)
-    glMaterialfv(GL_FRONT, GL_SHININESS, 2)
     glLightfv(light_id, GL_DIFFUSE, lightCol)
     glLightfv(light_id, GL_SPECULAR, lightCol)
-    glMaterialfv(GL_FRONT, GL_AMBIENT_AND_DIFFUSE, objCol)
 
 
 def main():
@@ -517,9 +514,12 @@ def main():
             glEnable(GL_LIGHTING)
             glEnable(GL_DEPTH_TEST)
             glPolygonMode(GL_FRONT, GL_FILL)
-            light(GL_LIGHT0, (0, 500, 0, 1),
-                  (0.9, 0.9, 0.6, 1.0), (0.7, 0.8, 1.0, 1.0))
-
+            glMaterialfv(GL_FRONT, GL_SPECULAR, (1.0, 1.0, 1.0, 1.0))
+            glMaterialfv(GL_FRONT, GL_SHININESS, 10)
+            glMaterialfv(GL_FRONT, GL_AMBIENT_AND_DIFFUSE,
+                         (0.9, 0.9, 0.8, 1.0))
+            light(GL_LIGHT0, (-400, 500, 0, 1), (0.7, 0.5, 0.9, 1.0))
+            light(GL_LIGHT1, (1000, 500, 0, 1), (0.95, 0.9, 0.6, 1.0))
         # render
         render(window)
 
