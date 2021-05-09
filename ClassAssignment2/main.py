@@ -1,5 +1,6 @@
-import numpy as np
 from re import match, split
+import os
+import numpy as np
 import glfw
 from OpenGL.GL import *
 from OpenGL.GLU import *
@@ -60,7 +61,7 @@ mesh = Mesh()
 filepath = None
 # perspective
 fov = 50.0  # y axis, in degrees
-aspRatio = 16/9  # = width/height
+aspRatio = 4/3  # = width/height
 # window height
 height = 720
 # true = perspective / false = ortho
@@ -74,7 +75,7 @@ az = np.deg2rad(45.0)
 ev = np.deg2rad(37.0)
 panU = 0.0
 panV = 0.0
-zoom = 5.0
+zoom = 100.0
 # view params
 eye = np.array([3.0, 3.0, 3.0])
 center = np.zeros(3)
@@ -90,9 +91,9 @@ panVbufftemp = 0.0
 azbufftemp = 0.0
 evbufftemp = 0.0
 # render params
-wireframe = False
+wireframe = True
 # hirearchical model animation mode toggle
-hmode = False
+hmode = True
 
 
 # geometry draw funcs
@@ -389,23 +390,30 @@ def parse_obj(filepath):
 
 
 ### hmode meshes ###
+script_dir = os.path.dirname(__file__)
 # island
-island_mesh = parse_obj('media/0-island.obj')
+island_file = os.path.join(script_dir, '0-island.obj')
+island_mesh = parse_obj(island_file)
 # mill
-mill_mesh = parse_obj('media/1-mill.obj')
+mill_file = os.path.join(script_dir, '1-mill.obj')
+mill_mesh = parse_obj(mill_file)
 # propeller
-mill_mesh = parse_obj('media/2-propeller.obj')
+prop_file = os.path.join(script_dir, '2-propeller.obj')
+prop_mesh = parse_obj(prop_file)
+# island_mesh = parse_obj(
+#     'D:\\DRIVE\\SCHOOL\\CSE4020-CGI\\repos\\2021_cse4020_2018014275\\ClassAssignment2\\0-island.obj')
+# mill_mesh = parse_obj(
+#     'D:\\DRIVE\\SCHOOL\\CSE4020-CGI\\repos\\2021_cse4020_2018014275\\ClassAssignment2\\1-mill.obj')
+# prop_mesh = parse_obj(
+#     'D:\\DRIVE\\SCHOOL\\CSE4020-CGI\\repos\\2021_cse4020_2018014275\\ClassAssignment2\\2-propeller.obj')
 
 
-# render
-
-
-def render():
-    glClear(GL_COLOR_BUFFER_BIT)
+### render ###
+def render(window):
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
     glLoadIdentity()
     glEnableClientState(GL_VERTEX_ARRAY)
     glEnableClientState(GL_NORMAL_ARRAY)
-    glEnable(GL_NORMALIZE)
 
     ### view (cam)
     # projection
@@ -426,17 +434,34 @@ def render():
     if filepath != None and hmode == False:
         drawmesh(mesh)
     elif hmode == True:
-        t = glfw.get_time()/20
-        sin1 = np.sin(t)
-        sin2 = np.sin(2.3*t)
+        t = glfw.get_time()
+        sin1 = np.sin(1.5*t)
+        sin2 = np.sin(3.7*t)
+        s2 = 1 + abs(sin2 * 0.05)
+        glRotatef(-90, 1, 0, 0)
+        glScalef(0.5, 0.5, 0.5)
+        # island
         glPushMatrix()
-        glTranslatef(0, 10*sin1, 0)
+        glRotatef(-10*t, 0, 0, 1)
+        glTranslatef(0, 0, 10*sin1)
+        glTranslatef(0, 60, 0)
         drawmesh(island_mesh)
+        # mill
         glPushMatrix()
-
-        s2 = 1 + sin2*0.1
-        glScalef(s2)
-        return
+        glScalef(s2, s2, s2)
+        drawmesh(mill_mesh)
+        # propeller
+        glPushMatrix()
+        glTranslatef(0, 20, 50)
+        glRotatef(90, 0, 1, 0)
+        glPushMatrix()
+        glRotatef(400*t, 0, 0, 1)
+        drawmesh(prop_mesh)
+        glPopMatrix()
+        glPopMatrix()
+        glPopMatrix()
+        glPopMatrix()
+    return
 
 
 def drawmesh(p_mesh):
@@ -444,6 +469,21 @@ def drawmesh(p_mesh):
     glNormalPointer(GL_FLOAT, 12, p_mesh.vnorm)
     indices = np.ravel(p_mesh.ibuff[:, 0:3])
     glDrawElements(GL_TRIANGLES, len(indices), GL_UNSIGNED_INT, indices)
+
+### lighting ###
+
+
+def light(light_id, lightPos, lightCol, objCol):
+    glEnable(light_id)
+    glLightfv(light_id, GL_POSITION, lightPos)
+    ambientLightColor = (.1, .1, .1, 1.)
+    specularObjectColor = (1., 1., 1., 1.)
+    glLightfv(light_id, GL_AMBIENT, ambientLightColor)
+    glMaterialfv(GL_FRONT, GL_SPECULAR, specularObjectColor)
+    glMaterialfv(GL_FRONT, GL_SHININESS, 2)
+    glLightfv(light_id, GL_DIFFUSE, lightCol)
+    glLightfv(light_id, GL_SPECULAR, lightCol)
+    glMaterialfv(GL_FRONT, GL_AMBIENT_AND_DIFFUSE, objCol)
 
 
 def main():
@@ -470,12 +510,18 @@ def main():
         update_cam(window)
 
         if wireframe:
+            glDisable(GL_LIGHTING)
+            glDisable(GL_DEPTH_TEST)
             glPolygonMode(GL_FRONT_AND_BACK, GL_LINE)
         else:
+            glEnable(GL_LIGHTING)
+            glEnable(GL_DEPTH_TEST)
             glPolygonMode(GL_FRONT, GL_FILL)
+            light(GL_LIGHT0, (0, 500, 0, 1),
+                  (0.9, 0.9, 0.6, 1.0), (0.7, 0.8, 1.0, 1.0))
 
         # render
-        render()
+        render(window)
 
         glfw.swap_buffers(window)
     print('goodbye!')
