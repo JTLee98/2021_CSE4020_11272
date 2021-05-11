@@ -6,6 +6,22 @@ from OpenGL.GLU import *
 gCamAng = 0.0
 gCamHeight = 0.0
 
+### general rotation matrix (affine homo 4x4) ###
+def rotation(angle_rad, x, y, z):
+    cos = np.cos(angle_rad)
+    sin = np.sin(angle_rad)
+    u = np.array([x, y, z])
+    R = np.identity(3)
+    # compute rotation matrix R (3x3)
+    # R =  I * cos
+    #    + (cross prod matx of u) * sin
+    #    + (outer prod u x u) * (1-cos)
+    R = cos * R + sin * np.cross(u, -1 * R) + (1-cos) * np.outer(u, u)
+    # convert to homogeneous 4x4
+    out = np.identity(4)
+    out[0:3, 0:3] = R
+    return out
+
 
 def render():
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
