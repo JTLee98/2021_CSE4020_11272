@@ -6,8 +6,6 @@ from OpenGL.GL import *
 from OpenGL.GLU import *
 
 ### mesh class ###
-
-
 class Mesh:
     def __init__(self):
         # ### Mesh hierarchy (tree) ###
@@ -54,42 +52,104 @@ class Mesh:
         self.ibuff = np.vstack((self.ibuff, ibuff))
         self.poly_count += ibuff.shape[0]
 
+### Camera class ###
+# contains view transform params
+# and input handling
+class Camera:
+    def __init__(self):
+        # control sensitivity (const)
+        self.LMBsens = 0.005
+        self.RMBsens = 0.001
+        self.zoomsens = 0.5
+        # view projection params
+        self.fov = 50.0
+        self.aspRatio = 1
+        self.PROJMODE = True
+        self.az = np.deg2rad(45.0)
+        self.ev = np.deg2rad(37.0)
+        self.panU = 0.0
+        self.panV = 0.0
+        self.zoom = 5.0
+        # camera position
+        self.eye = np.array([3.0, 3.0, 3.0])
+        self.center = np.zeros(3)
+        # misc input value buffers
+        self.LMBbuff = True
+        self.azbuff = 0.0
+        self.evbuff = 0.0
+        self.RMBbuff = True
+        self.panUbuff = 0.0
+        self.panVbuff = 0.0
+        return
+
+    def get_input(self,window):
+        if glfw.get_key(window, glfw.KEY_0) == glfw.PRESS:
+            self.az = np.deg2rad(45.0)
+            self.ev = np.deg2rad(37.0)
+            self.panU = 0.0
+            self.panV = 0.0
+            self.zoom = 5.0
+        if glfw.get_key(window, glfw.KEY_V) == glfw.PRESS:
+            self.PROJMODE = not self.PROJMODE
+        if glfw.get_mouse_button(window, glfw.MOUSE_BUTTON_LEFT) == glfw.PRESS:
+            if self.LMBbuff:
+                self.azbufftemp = self.RMBsens * \
+                    -float(glfw.get_cursor_pos(window)[0])
+                self.evbufftemp = self.RMBsens * \
+                    float(glfw.get_cursor_pos(window)[1])
+                self.LMBbuff = False
+            else:
+                self.az = self.azbuff - self.azbufftemp + self.RMBsens * - \
+                    float(glfw.get_cursor_pos(window)[0])
+                self.ev = self.evbuff - self.evbufftemp + self.RMBsens * \
+                    float(glfw.get_cursor_pos(window)[1])
+        elif glfw.get_mouse_button(window, glfw.MOUSE_BUTTON_LEFT) == glfw.RELEASE:
+            self.azbuff = self.az
+            self.evbuff = self.ev
+            self.LMBbuff = True
+        if glfw.get_mouse_button(window, glfw.MOUSE_BUTTON_RIGHT) == glfw.PRESS:
+            if self.RMBbuff:
+                self.panUbufftemp = self.LMBsens * \
+                    -float(glfw.get_cursor_pos(window)[0])
+                self.panVbufftemp = self.LMBsens * \
+                    float(glfw.get_cursor_pos(window)[1])
+                self.RMBbuff = False
+            else:
+                self.panU = self.panUbuff - self.panUbufftemp + self.LMBsens * - \
+                    float(glfw.get_cursor_pos(window)[0])
+                self.panV = self.panVbuff - self.panVbufftemp + self.LMBsens * \
+                    float(glfw.get_cursor_pos(window)[1])
+        elif glfw.get_mouse_button(window, glfw.MOUSE_BUTTON_RIGHT) == glfw.RELEASE:
+            self.panUbuff = self.panU
+            self.panVbuff = self.panV
+            self.RMBbuff = True
+        if glfw.get_key(window, glfw.KEY_ESCAPE) == glfw.PRESS:
+            glfw.terminate()
+            return
+    def update(self):
+        # update view params
+        az = self.az
+        ev = self.ev
+        # calculate camera frame
+        u = np.array([np.cos(az), 0, -np.sin(az)])
+        v = np.array([-np.sin(ev) * np.sin(az),
+                    np.cos(ev),
+                    -np.sin(ev) * np.cos(az)])
+        w = np.array([np.cos(ev) * np.sin(az),
+                    np.sin(ev),
+                    np.cos(ev) * np.cos(az)])
+        self.center = self.panU * u + self.panV * v
+        self.eye = self.zoom * w + self.center
+        return
 
 ### global vars ###
 # mesh
-mesh = Mesh()
+drop_mesh = Mesh()
 filepath = None
-# perspective
-fov = 50.0  # y axis, in degrees
-aspRatio = 4/3  # = width/height
 # window height
 height = 720
-# true = perspective / false = ortho
-PROJMODE = True
-# control sensitivity (const)
-LMBsens = 0.1
-RMBsens = 0.003
-zoomsens = 10
-# camera params
-az = np.deg2rad(45.0)
-ev = np.deg2rad(37.0)
-panU = 0.0
-panV = 0.0
-zoom = 200.0
-# view params
-eye = np.array([3.0, 3.0, 3.0])
-center = np.zeros(3)
-# buffer vars etc
-LMBbuff = True
-azbuff = 0.0
-evbuff = 0.0
-RMBbuff = True
-panUbuff = 0.0
-panVbuff = 0.0
-panUbufftemp = 0.0
-panVbufftemp = 0.0
-azbufftemp = 0.0
-evbufftemp = 0.0
+# camera
+cam1 = Camera()
 # render params
 wireframe = True
 # hirearchical model animation mode toggle
@@ -114,7 +174,6 @@ def drawGrid(size, MinStep, MinColor, MajStep, MajColor):
     glEnd()
     return
 
-
 def drawAxes(length):
     glPushMatrix()
     glScalef(length, length, length)
@@ -132,86 +191,19 @@ def drawAxes(length):
     glPopMatrix()
     return
 
-# camera
-
-
-def update_cam(window):
-    global ev, az, panU, panV, zoom, center, eye
-    global LMBbuff, azbuff, evbuff, RMBbuff, panUbuff, panVbuff
-    global panUbufftemp, panVbufftemp, azbufftemp, evbufftemp
-
-    if glfw.get_key(window, glfw.KEY_0) == glfw.PRESS:
-        az = np.deg2rad(45.0)
-        ev = np.deg2rad(37.0)
-        panU = 0.0
-        panV = 0.0
-        zoom = 5.0
-    if glfw.get_key(window, glfw.KEY_V) == glfw.PRESS:
-        PROJMODE = not PROJMODE
-    if glfw.get_mouse_button(window, glfw.MOUSE_BUTTON_LEFT) == glfw.PRESS:
-        if LMBbuff:
-            azbufftemp = RMBsens * \
-                -float(glfw.get_cursor_pos(window)[0])
-            evbufftemp = RMBsens * \
-                float(glfw.get_cursor_pos(window)[1])
-            LMBbuff = False
-        else:
-            az = azbuff - azbufftemp + RMBsens * - \
-                float(glfw.get_cursor_pos(window)[0])
-            ev = evbuff - evbufftemp + RMBsens * \
-                float(glfw.get_cursor_pos(window)[1])
-    elif glfw.get_mouse_button(window, glfw.MOUSE_BUTTON_LEFT) == glfw.RELEASE:
-        azbuff = az
-        evbuff = ev
-        LMBbuff = True
-    if glfw.get_mouse_button(window, glfw.MOUSE_BUTTON_RIGHT) == glfw.PRESS:
-        if RMBbuff:
-            panUbufftemp = LMBsens * \
-                -float(glfw.get_cursor_pos(window)[0])
-            panVbufftemp = LMBsens * \
-                float(glfw.get_cursor_pos(window)[1])
-            RMBbuff = False
-        else:
-            panU = panUbuff - panUbufftemp + LMBsens * - \
-                float(glfw.get_cursor_pos(window)[0])
-            panV = panVbuff - panVbufftemp + LMBsens * \
-                float(glfw.get_cursor_pos(window)[1])
-    elif glfw.get_mouse_button(window, glfw.MOUSE_BUTTON_RIGHT) == glfw.RELEASE:
-        panUbuff = panU
-        panVbuff = panV
-        RMBbuff = True
-
-    # calculate camera frame
-
-    u = np.array([np.cos(az), 0, -np.sin(az)])
-    v = np.array([-np.sin(ev) * np.sin(az),
-                  np.cos(ev),
-                  -np.sin(ev) * np.cos(az)])
-    w = np.array([np.cos(ev) * np.sin(az),
-                  np.sin(ev),
-                  np.cos(ev) * np.cos(az)])
-    center = panU * u + panV * v
-    eye = zoom * w + center
-    return
-
 # zoom scroll
-
-
 def scrollCB(window, xoffset, yoffset):
-    global zoom, zoomsens
-    zoom -= zoomsens * yoffset
-
+    global cam1
+    cam1.zoom -= cam1.zoomsens * yoffset
 
 # file drop
 def fileparse(window, paths):
-    global mesh, filepath
+    global drop_mesh, filepath
     filepath = paths[0]
-    mesh = parse_obj(filepath)
+    drop_mesh = parse_obj(filepath)
     return
 
 # keyboard commands
-
-
 def kb_cmd(window, key, scancode, action, mods):
     global wireframe, hmode
     if action == glfw.PRESS:
@@ -229,10 +221,8 @@ def kb_cmd(window, key, scancode, action, mods):
                 - C : show this help dialogue
                 - ESC : exit program''')
 
-### parse function ###
+### PARSING ###
 # line printer for obj parser
-
-
 def lineprint(line, number, max_digits):
     digits = len(str(number))
     if number == None:
@@ -242,8 +232,6 @@ def lineprint(line, number, max_digits):
     print(f'{spacing}{number} | {line}')
 
 # parse_obj() : takes obj file and returns a Mesh
-
-
 def parse_obj(filepath):
     # open file
     if match(r'.*\.obj$', filepath) == None:
@@ -409,22 +397,26 @@ prop_mesh = parse_obj(prop_file)
 
 
 ### render ###
-def render(window):
+def render(window, camera, mesh):
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
     glLoadIdentity()
     glEnableClientState(GL_VERTEX_ARRAY)
     glEnableClientState(GL_NORMAL_ARRAY)
 
-    ### view (cam)
+    ### camera ###
+    eye = camera.eye
+    center = camera.center
     # projection
-    if PROJMODE:
-        gluPerspective(fov, aspRatio, 0.1, 1000.0)
+    if camera.PROJMODE:
+        gluPerspective(camera.fov, camera.aspRatio, 0.1, 1000.0)
     else:
         glOrtho(-10, 10, -10, 10, -10, 10)
+    # view
     gluLookAt(eye[0], eye[1], eye[2],
               center[0], center[1], center[2],
               0.0, 1.0, 0.0)
-    # drawing
+    
+    ### drawing ###
     # draw grid
     drawGrid(50.0, 2.0, [96, 96, 96], 10.0, [192, 192, 192])
     # draw axes
@@ -463,7 +455,7 @@ def render(window):
         glPopMatrix()
     return
 
-
+# draw mesh
 def drawmesh(p_mesh):
     glVertexPointer(3, GL_FLOAT, 3*p_mesh.vpos.itemsize, p_mesh.vpos)
     glNormalPointer(GL_FLOAT, 12, p_mesh.vnorm)
@@ -471,28 +463,24 @@ def drawmesh(p_mesh):
     glDrawElements(GL_TRIANGLES, len(indices), GL_UNSIGNED_INT, indices)
 
 ### lighting ###
-
-
 def light(light_id, lightPos, lightCol):
+    glEnable(GL_LIGHTING)
+    glEnable(GL_DEPTH_TEST)
     glEnable(light_id)
     glLightfv(light_id, GL_POSITION, lightPos)
     ambientLightColor = (.1, .1, .1, 1.)
-    specularObjectColor = (1., 1., 1., 1.)
     glLightfv(light_id, GL_AMBIENT, ambientLightColor)
     glLightfv(light_id, GL_DIFFUSE, lightCol)
     glLightfv(light_id, GL_SPECULAR, lightCol)
 
 
 def main():
-    global fov, aspRatio, height, PROJMODE
-    global LMBsens, RMBsens, zoomsens
-    global ev, az, panU, panV, zoom, center, eye
     global wireframe
     if not glfw.init():
         print("glfw: failed to init")
         return -1
     window = glfw.create_window(
-        int(height * aspRatio), height, "obj Viewer", None, None)
+        int(height * cam1.aspRatio), height, "obj Viewer", None, None)
     if not window:
         glfw.terminate()
         return -1
@@ -503,16 +491,13 @@ def main():
     glfw.set_key_callback(window, kb_cmd)
     while not glfw.window_should_close(window):
         glfw.poll_events()
-
-        update_cam(window)
-
+        cam1.get_input(window)
+        cam1.update()
         if wireframe:
             glDisable(GL_LIGHTING)
             glDisable(GL_DEPTH_TEST)
             glPolygonMode(GL_FRONT_AND_BACK, GL_LINE)
         else:
-            glEnable(GL_LIGHTING)
-            glEnable(GL_DEPTH_TEST)
             glPolygonMode(GL_FRONT, GL_FILL)
             glMaterialfv(GL_FRONT, GL_SPECULAR, (1.0, 1.0, 1.0, 1.0))
             glMaterialfv(GL_FRONT, GL_SHININESS, 10)
@@ -521,7 +506,7 @@ def main():
             light(GL_LIGHT0, (-400, 500, 0, 1), (0.7, 0.5, 0.9, 1.0))
             light(GL_LIGHT1, (1000, 500, 0, 1), (0.95, 0.9, 0.6, 1.0))
         # render
-        render(window)
+        render(window, cam1, drop_mesh)
 
         glfw.swap_buffers(window)
     print('goodbye!')

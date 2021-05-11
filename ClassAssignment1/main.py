@@ -3,32 +3,104 @@ import glfw
 from OpenGL.GL import *
 from OpenGL.GLU import *
 
+### Camera class ###
+# contains view transform params
+# and input handling
+class Camera:
+    def __init__(self):
+        # control sensitivity (const)
+        self.LMBsens = 0.005
+        self.RMBsens = 0.001
+        self.zoomsens = 0.5
+        # view projection params
+        self.fov = 50.0
+        self.aspRatio = 1
+        self.PROJMODE = True
+        self.az = np.deg2rad(45.0)
+        self.ev = np.deg2rad(37.0)
+        self.panU = 0.0
+        self.panV = 0.0
+        self.zoom = 5.0
+        # camera position
+        self.eye = np.array([3.0, 3.0, 3.0])
+        self.center = np.zeros(3)
+        # misc input value buffers
+        self.LMBbuff = True
+        self.azbuff = 0.0
+        self.evbuff = 0.0
+        self.RMBbuff = True
+        self.panUbuff = 0.0
+        self.panVbuff = 0.0
+        return
+
+    def input(self,window):
+        if glfw.get_key(window, glfw.KEY_0) == glfw.PRESS:
+            self.az = np.deg2rad(45.0)
+            self.ev = np.deg2rad(37.0)
+            self.panU = 0.0
+            self.panV = 0.0
+            self.zoom = 5.0
+        if glfw.get_key(window, glfw.KEY_V) == glfw.PRESS:
+            self.PROJMODE = not self.PROJMODE
+        if glfw.get_mouse_button(window, glfw.MOUSE_BUTTON_LEFT) == glfw.PRESS:
+            if self.LMBbuff:
+                self.azbufftemp = self.RMBsens * \
+                    -float(glfw.get_cursor_pos(window)[0])
+                self.evbufftemp = self.RMBsens * \
+                    float(glfw.get_cursor_pos(window)[1])
+                self.LMBbuff = False
+            else:
+                self.az = self.azbuff - self.azbufftemp + self.RMBsens * - \
+                    float(glfw.get_cursor_pos(window)[0])
+                self.ev = self.evbuff - self.evbufftemp + self.RMBsens * \
+                    float(glfw.get_cursor_pos(window)[1])
+        elif glfw.get_mouse_button(window, glfw.MOUSE_BUTTON_LEFT) == glfw.RELEASE:
+            self.azbuff = self.az
+            self.evbuff = self.ev
+            self.LMBbuff = True
+        if glfw.get_mouse_button(window, glfw.MOUSE_BUTTON_RIGHT) == glfw.PRESS:
+            if self.RMBbuff:
+                self.panUbufftemp = self.LMBsens * \
+                    -float(glfw.get_cursor_pos(window)[0])
+                self.panVbufftemp = self.LMBsens * \
+                    float(glfw.get_cursor_pos(window)[1])
+                self.RMBbuff = False
+            else:
+                self.panU = self.panUbuff - self.panUbufftemp + self.LMBsens * - \
+                    float(glfw.get_cursor_pos(window)[0])
+                self.panV = self.panVbuff - self.panVbufftemp + self.LMBsens * \
+                    float(glfw.get_cursor_pos(window)[1])
+        elif glfw.get_mouse_button(window, glfw.MOUSE_BUTTON_RIGHT) == glfw.RELEASE:
+            self.panUbuff = self.panU
+            self.panVbuff = self.panV
+            self.RMBbuff = True
+        if glfw.get_key(window, glfw.KEY_ESCAPE) == glfw.PRESS:
+            glfw.terminate()
+            return
+    def update(self):
+        # update view params
+        az = self.az
+        ev = self.ev
+        # calculate camera frame
+        u = np.array([np.cos(az), 0, -np.sin(az)])
+        v = np.array([-np.sin(ev) * np.sin(az),
+                    np.cos(ev),
+                    -np.sin(ev) * np.cos(az)])
+        w = np.array([np.cos(ev) * np.sin(az),
+                    np.sin(ev),
+                    np.cos(ev) * np.cos(az)])
+        self.center = self.panU * u + self.panV * v
+        self.eye = self.zoom * w + self.center
+        return
+
 
 ### global vars
-# perspective
-fov = 50.0  # y axis, in degrees
-aspRatio = 16/9  # = width/height
 # window height
 height = 720
-# true = perspective / false = ortho
-PROJMODE = True
-# control sensitivity (const)
-LMBsens = 0.005
-RMBsens = 0.001
-zoomsens = 0.5
-# camera params
-az = np.deg2rad(45.0)
-ev = np.deg2rad(37.0)
-panU = 0.0
-panV = 0.0
-zoom = 5.0
-# view params
-eye = np.array([3.0, 3.0, 3.0])
-center = np.zeros(3)
+# camera
+cam = Camera()
 
 # geometry draw funcs
-
-
 def drawGrid(gSize, gStepMin, gStepMaj):
     glBegin(GL_LINES)
     glColor3ub(127, 127, 127)
@@ -45,7 +117,6 @@ def drawGrid(gSize, gStepMin, gStepMaj):
         glVertex3f(gSize, 0.0, i)
     glEnd()
     return
-
 
 def drawAxes(length):
     glPushMatrix()
@@ -64,66 +135,39 @@ def drawAxes(length):
     glPopMatrix()
     return
 
-# camera
-
-
-def update_cam():
-    global ev, az, panU, panV, zoom, center, eye
-    # calculate camera frame
-
-    u = np.array([np.cos(az), 0, -np.sin(az)])
-    v = np.array([-np.sin(ev) * np.sin(az),
-                  np.cos(ev),
-                  -np.sin(ev) * np.cos(az)])
-    w = np.array([np.cos(ev) * np.sin(az),
-                  np.sin(ev),
-                  np.cos(ev) * np.cos(az)])
-    center = panU * u + panV * v
-    eye = zoom * w + center
-    return
-
 # zoom scroll
-
-
 def scrollCB(window, xoffset, yoffset):
-    global zoom, zoomsens
-    zoom -= zoomsens * yoffset
+    global cam
+    cam.zoom -= cam.zoomsens * yoffset
 
-# render
-
-
-def render():
+### render ###
+def render(cam):
     glClear(GL_COLOR_BUFFER_BIT)
     glLoadIdentity()
 
-    ### view (cam)
+    ### view (cam) ###
     # projection
-    if PROJMODE:
-        gluPerspective(fov, aspRatio, 0.1, 100.0)
+    if cam.PROJMODE:
+        gluPerspective(cam.fov, cam.aspRatio, 0.1, 100.0)
     else:
         glOrtho(-10, 10, -10, 10, -10, 10)
-    gluLookAt(eye[0], eye[1], eye[2],
-              center[0], center[1], center[2],
+    gluLookAt(cam.eye[0], cam.eye[1], cam.eye[2],
+              cam.center[0], cam.center[1], cam.center[2],
               0.0, 1.0, 0.0)
-    # drawing
-
+    ### drawing ###
     # draw grid
     drawGrid(5.0, 0.2, 1.0)
     # draw axes
     drawAxes(3.0)
-
     return
 
 
 def main():
-    global fov, aspRatio, height, PROJMODE
-    global LMBsens, RMBsens, zoomsens
-    global ev, az, panU, panV, zoom, center, eye
     if not glfw.init():
         print("glfw: failed to init")
         return -1
     window = glfw.create_window(
-        int(height * aspRatio), height, "Simple Viewer", None, None)
+        int(height * cam.aspRatio), height, "Simple Viewer", None, None)
     if not window:
         glfw.terminate()
         return -1
@@ -131,62 +175,12 @@ def main():
     glfw.swap_interval(1)
     glfw.set_scroll_callback(window, scrollCB)
 
-    LMBbuff = True
-    azbuff = 0.0
-    evbuff = 0.0
-    RMBbuff = True
-    panUbuff = 0.0
-    panVbuff = 0.0
     while not glfw.window_should_close(window):
         glfw.wait_events()
-        # input handling
-        if glfw.get_key(window, glfw.KEY_0) == glfw.PRESS:
-            az = np.deg2rad(45.0)
-            ev = np.deg2rad(37.0)
-            panU = 0.0
-            panV = 0.0
-            zoom = 5.0
-        if glfw.get_key(window, glfw.KEY_V) == glfw.PRESS:
-            PROJMODE = not PROJMODE
-        if glfw.get_mouse_button(window, glfw.MOUSE_BUTTON_LEFT) == glfw.PRESS:
-            if LMBbuff:
-                azbufftemp = RMBsens * \
-                    -float(glfw.get_cursor_pos(window)[0])
-                evbufftemp = RMBsens * \
-                    float(glfw.get_cursor_pos(window)[1])
-                LMBbuff = False
-            else:
-                az = azbuff - azbufftemp + RMBsens * - \
-                    float(glfw.get_cursor_pos(window)[0])
-                ev = evbuff - evbufftemp + RMBsens * \
-                    float(glfw.get_cursor_pos(window)[1])
-        elif glfw.get_mouse_button(window, glfw.MOUSE_BUTTON_LEFT) == glfw.RELEASE:
-            azbuff = az
-            evbuff = ev
-            LMBbuff = True
-        if glfw.get_mouse_button(window, glfw.MOUSE_BUTTON_RIGHT) == glfw.PRESS:
-            if RMBbuff:
-                panUbufftemp = LMBsens * \
-                    -float(glfw.get_cursor_pos(window)[0])
-                panVbufftemp = LMBsens * \
-                    float(glfw.get_cursor_pos(window)[1])
-                RMBbuff = False
-            else:
-                panU = panUbuff - panUbufftemp + LMBsens * - \
-                    float(glfw.get_cursor_pos(window)[0])
-                panV = panVbuff - panVbufftemp + LMBsens * \
-                    float(glfw.get_cursor_pos(window)[1])
-        elif glfw.get_mouse_button(window, glfw.MOUSE_BUTTON_RIGHT) == glfw.RELEASE:
-            panUbuff = panU
-            panVbuff = panV
-            RMBbuff = True
-        if glfw.get_key(window, glfw.KEY_ESCAPE) == glfw.PRESS:
-            break
-
-        update_cam()
-
+        cam.input(window)
+        cam.update()
         # render
-        render()
+        render(cam)
         glfw.swap_buffers(window)
     glfw.terminate()
     return 0
